@@ -12,7 +12,7 @@ func TestSIG0(t *testing.T) {
 	}
 	m := new(Msg)
 	m.SetQuestion("example.org.", TypeSOA)
-	for _, alg := range []uint8{ECDSAP256SHA256, ECDSAP384SHA384, RSASHA1, RSASHA256, RSASHA512, ED25519} {
+	for _, alg := range []uint8{ECDSAP256SHA256, ECDSAP384SHA384, RSASHA1, RSASHA256, RSASHA512, ED25519, MLDSA44} {
 		algstr := AlgorithmToString[alg]
 		keyrr := new(KEY)
 		keyrr.Hdr.Name = algstr + "."
@@ -27,6 +27,8 @@ func TestSIG0(t *testing.T) {
 			keysize = 384
 		case RSASHA1, RSASHA256, RSASHA512:
 			keysize = 1024
+		case MLDSA44:
+			keysize = 10496
 		}
 		pk, err := keyrr.Generate(keysize)
 		if err != nil {

@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/rsa"
 	_ "crypto/sha1"   // need its init function
@@ -38,6 +39,8 @@ const (
 	ECDSAP384SHA384
 	ED25519
 	ED448
+	SM2SM3
+	MLDSA44
 	INDIRECT   uint8 = 252
 	PRIVATEDNS uint8 = 253 // Private (experimental keys)
 	PRIVATEOID uint8 = 254
@@ -58,6 +61,8 @@ var AlgorithmToString = map[uint8]string{
 	ECDSAP384SHA384:  "ECDSAP384SHA384",
 	ED25519:          "ED25519",
 	ED448:            "ED448",
+	SM2SM3:           "SM2SM3",
+	MLDSA44:          "MLDSA44",
 	INDIRECT:         "INDIRECT",
 	PRIVATEDNS:       "PRIVATEDNS",
 	PRIVATEOID:       "PRIVATEOID",
@@ -77,6 +82,7 @@ var AlgorithmToHash = map[uint8]crypto.Hash{
 	ECDSAP384SHA384:  crypto.SHA384,
 	RSASHA512:        crypto.SHA512,
 	ED25519:          0,
+	MLDSA44:          0,
 }
 
 // DNSSEC hashing algorithm codes.
@@ -317,7 +323,7 @@ func sign(k crypto.Signer, hashed []byte, hash crypto.Hash, alg uint8) ([]byte, 
 	}
 
 	switch alg {
-	case RSASHA1, RSASHA1NSEC3SHA1, RSASHA256, RSASHA512, ED25519:
+	case RSASHA1, RSASHA1NSEC3SHA1, RSASHA256, RSASHA512, ED25519, MLDSA44:
 		return signature, nil
 	case ECDSAP256SHA256, ECDSAP384SHA384:
 		ecdsaSignature := &struct {
@@ -468,6 +474,14 @@ func (rr *RRSIG) Verify(k *DNSKEY, rrset []RR) error {
 		}
 		return ErrSig
 
+	case MLDSA44:
+		pubkey := k.publicKeyMLDSA()
+		if pubkey == nil {
+			return ErrKey
+		}
+
+		return mldsa.Verify(pubkey, append(signeddata, wire...), sigbuf, nil)
+
 	default:
 		return ErrAlg
 	}
@@ -588,6 +602,22 @@ func (k *DNSKEY) publicKeyED25519() ed25519.PublicKey {
 		return nil
 	}
 	return keybuf
+}
+
+func (k *DNSKEY) publicKeyMLDSA() *mldsa.PublicKey {
+	keybuf, err := fromBase64([]byte(k.PublicKey))
+	if err != nil {
+		return nil
+	}
+	var pubkey *mldsa.PublicKey
+	switch k.Algorithm {
+	case MLDSA44:
+		if len(keybuf) != mldsa.MLDSA44PublicKeySize {
+			return nil
+		}
+		pubkey, _ = mldsa.NewPublicKey(mldsa.MLDSA44(), keybuf)
+	}
+	return pubkey
 }
 
 type wireSlice [][]byte

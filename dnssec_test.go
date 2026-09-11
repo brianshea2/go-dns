@@ -4,6 +4,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/rsa"
 	"reflect"
 	"strings"
@@ -607,6 +608,55 @@ func TestSignVerifyEd25519(t *testing.T) {
 	sig.Algorithm = ED25519
 
 	if sig.Sign(privkey.(ed25519.PrivateKey), []RR{srv}) != nil {
+		t.Fatal("failure to sign the record")
+	}
+
+	err = sig.Verify(key, []RR{srv})
+	if err != nil {
+		t.Logf("failure to validate:\n%s\n%s\n%s\n\n%s\n\n%v",
+			key.String(),
+			srv.String(),
+			sig.String(),
+			key.PrivateKeyString(privkey),
+			err,
+		)
+	}
+}
+
+func TestSignVerifyMLDSA44(t *testing.T) {
+	srv1, err := NewRR("srv.miek.nl. IN SRV 1000 800 0 web1.miek.nl.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := srv1.(*SRV)
+
+	// With this key
+	key := new(DNSKEY)
+	key.Hdr.Rrtype = TypeDNSKEY
+	key.Hdr.Name = "miek.nl."
+	key.Hdr.Class = ClassINET
+	key.Hdr.Ttl = 14400
+	key.Flags = 256
+	key.Protocol = 3
+	key.Algorithm = MLDSA44
+	privkey, err := key.Generate(10496)
+	if err != nil {
+		t.Fatal("failure to generate key")
+	}
+
+	// Fill in the values of the Sig, before signing
+	sig := new(RRSIG)
+	sig.Hdr = RR_Header{"miek.nl.", TypeRRSIG, ClassINET, 14400, 0}
+	sig.TypeCovered = srv.Hdr.Rrtype
+	sig.Labels = uint8(CountLabel(srv.Hdr.Name)) // works for all 3
+	sig.OrigTtl = srv.Hdr.Ttl
+	sig.Expiration = 1296534305 // date -u '+%s' -d"2011-02-01 04:25:05"
+	sig.Inception = 1293942305  // date -u '+%s' -d"2011-01-02 04:25:05"
+	sig.KeyTag = key.KeyTag()   // Get the keyfrom the Key
+	sig.SignerName = key.Hdr.Name
+	sig.Algorithm = MLDSA44
+
+	if sig.Sign(privkey.(*mldsa.PrivateKey), []RR{srv}) != nil {
 		t.Fatal("failure to sign the record")
 	}
 

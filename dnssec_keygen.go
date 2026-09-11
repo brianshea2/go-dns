@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"math/big"
@@ -36,6 +37,10 @@ func (k *DNSKEY) Generate(bits int) (crypto.PrivateKey, error) {
 		}
 	case ED25519:
 		if bits != 256 {
+			return nil, ErrKeySize
+		}
+	case MLDSA44:
+		if bits != 10496 {
 			return nil, ErrKeySize
 		}
 	default:
@@ -70,6 +75,13 @@ func (k *DNSKEY) Generate(bits int) (crypto.PrivateKey, error) {
 			return nil, err
 		}
 		k.setPublicKeyED25519(pub)
+		return priv, nil
+	case MLDSA44:
+		priv, err := mldsa.GenerateKey(mldsa.MLDSA44())
+		if err != nil {
+			return nil, err
+		}
+		k.setPublicKeyMLDSA(priv.PublicKey())
 		return priv, nil
 	default:
 		return nil, ErrAlg
@@ -109,6 +121,15 @@ func (k *DNSKEY) setPublicKeyED25519(_K ed25519.PublicKey) bool {
 		return false
 	}
 	k.PublicKey = toBase64(_K)
+	return true
+}
+
+// Set the public key for MLDSA
+func (k *DNSKEY) setPublicKeyMLDSA(_K *mldsa.PublicKey) bool {
+	if _K == nil {
+		return false
+	}
+	k.PublicKey = toBase64(_K.Bytes())
 	return true
 }
 

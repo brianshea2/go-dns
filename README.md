@@ -103,7 +103,7 @@ Send pull request if you want to be listed here.
 - Fast
 - Server side programming (mimicking the net/http package)
 - Client side programming
-- DNSSEC: signing, validating and key generation for DSA, RSA, ECDSA and Ed25519
+- DNSSEC: signing, validating and key generation for DSA, RSA, ECDSA, Ed25519 and MLDSA
 - EDNS0, NSID, Cookies
 - AXFR/IXFR
 - TSIG, SIG(0)

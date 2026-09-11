@@ -5,6 +5,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/rsa"
 	"io"
 	"math/big"
@@ -67,6 +68,8 @@ func (k *DNSKEY) ReadPrivateKey(q io.Reader, file string) (crypto.PrivateKey, er
 		return priv, nil
 	case ED25519:
 		return readPrivateKeyED25519(m)
+	case MLDSA44:
+		return readPrivateKeyMLDSA(mldsa.MLDSA44(), m)
 	default:
 		return nil, ErrAlg
 	}
@@ -138,6 +141,30 @@ func readPrivateKeyED25519(m map[string]string) (ed25519.PrivateKey, error) {
 				return nil, ErrPrivKey
 			}
 			p = ed25519.NewKeyFromSeed(p1)
+		case "created", "publish", "activate":
+			/* not used in Go (yet) */
+		}
+	}
+	return p, nil
+}
+
+func readPrivateKeyMLDSA(params mldsa.Parameters, m map[string]string) (*mldsa.PrivateKey, error) {
+	var p *mldsa.PrivateKey
+	// TODO: validate that the required flags are present
+	for k, v := range m {
+		switch k {
+		case "privatekey":
+			seed, err := fromBase64([]byte(v))
+			if err != nil {
+				return nil, err
+			}
+			if len(seed) != mldsa.PrivateKeySize {
+				return nil, ErrPrivKey
+			}
+			p, err = mldsa.NewPrivateKey(params, seed)
+			if err != nil {
+				return nil, err
+			}
 		case "created", "publish", "activate":
 			/* not used in Go (yet) */
 		}

@@ -4,6 +4,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/rsa"
 	"encoding/binary"
 	"math/big"
@@ -187,6 +188,11 @@ func (rr *SIG) Verify(k *KEY, buf []byte) error {
 				return nil
 			}
 			return ErrSig
+		}
+	case MLDSA44:
+		pk := k.publicKeyMLDSA()
+		if pk != nil {
+			return mldsa.Verify(pk, hashed, sig, nil)
 		}
 	}
 	return ErrKeyAlg
